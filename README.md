@@ -35,3 +35,12 @@ tool is located in the sidebar under the tab &ldquo;Face_copy&rdquo;.</B></FONT>
 </P>
 </BODY>
 </HTML>
+
+Here are links provided by p2or to Addon Templates for Blender 2.79 & 2.80.
+
+https://gist.github.com/p2or/2947b1aa89141caae182526a8fc2bc5a
+
+https://gist.github.com/p2or/a00bdde9f2751940717a404cf977dd01
+
+
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
