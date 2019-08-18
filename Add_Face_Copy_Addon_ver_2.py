@@ -3,7 +3,7 @@ bl_info = {
     "name": "Face Copy Add-on",
     "description":  "Adds a New Object from Selected Faces",
     "author": "Noizirom",
-    "version": (2, 0, 0),
+    "version": (2, 0, 1),
     "blender": (2, 80, 0),
     "location": "View3D > Add > Mesh > Face Copy Object",
     "warning": "", 
@@ -34,21 +34,10 @@ from bpy.types import (Panel,
 
 #get selected verts, edges, and faces information
 def get_sel():
-    '''
-    gs[0] = vert ##[0] = co, [1] = index, [2] = uv, [3] = normal, [4] = undeformed_co
-    gs[1] = edge ##[0] = index, [1] = vert indexes
-    gs[2] = face ##[0] = area, [1] = index, [2] = normal, [3] = center, [4] = vert indexes
-    gs[3] = new from selected ##[0] = new vert index, [1] = new edge vert indexes,
-    ##[2] = new face vert indexes, [3] = vert count, [4] = edge count, [5] = face count,
-    ##[6] = new vertice index dictionary
-    '''
-    #vert, edge, face, new = get_sel()
     mode = bpy.context.active_object.mode
     vt = bpy.context.object.data.vertices
-    ed = bpy.context.object.data.edges
     fa = bpy.context.object.data.polygons
     bpy.ops.object.mode_set(mode='OBJECT')
-    #vertices
     countv = len(vt)
     selv = np.empty(countv, dtype=np.bool)
     vt.foreach_get('select', selv)
@@ -57,45 +46,19 @@ def get_sel():
     co.shape = (countv, 3)
     vidx = np.empty(countv, dtype=np.int32)
     vt.foreach_get('index', vidx)
-    vnorm = np.empty(countv * 3, dtype=np.float32)
-    vt.foreach_get('normal', vnorm)
-    vnorm.shape = (countv, 3)
-    und_co = np.empty(countv * 3, dtype=np.float32)
-    vt.foreach_get('undeformed_co', und_co)
-    und_co.shape = (countv, 3)
-    uv_dict = {}#dc({loop.vertex_index: bpy.context.object.data.uv_layers.active.data[loop.index].uv for loop in bpy.context.object.data.loops})
-    uv_co = np.array(1)#np.array([uv_dict[i] for i in vidx[selv]])
-    #edges
-    counte = len(ed)
-    sele = np.empty(counte, dtype=np.bool)
-    ed.foreach_get('select', sele)
-    eidx = np.empty(counte, dtype=np.int32)
-    ed.foreach_get('index', eidx)
-    edg = np.array([i.vertices[:] for i in ed])
-    #faces
     countf = len(fa)
     selfa = np.empty(countf, dtype=np.bool)
     fa.foreach_get('select', selfa)
-    farea = np.empty(countf, dtype=np.float32)
-    fa.foreach_get('area', farea)
     fidx = np.empty(countf, dtype=np.int32)
     fa.foreach_get('index', fidx)
-    fnorm = np.empty(countf * 3, dtype=np.float32)
-    fa.foreach_get('normal', fnorm)
-    fnorm.shape = (countf, 3)
-    fcnt = np.empty(countf * 3, dtype=np.float32)
-    fa.foreach_get('center', fcnt)
-    fcnt.shape = (countf, 3)
     fac = np.array([i.vertices[:] for i in fa])
     #New indexes
     v_count = len(vidx[selv])
-    e_count = len(eidx[sele])
     f_count = len(fidx[selfa])
     new_idx = [i for i in range(v_count)]
     nv_Dict = {o: n for n, o in enumerate(vidx[selv].tolist())}
-    new_e = [[nv_Dict[i] for i in nest] for nest in edg[sele]]
     new_f = [[nv_Dict[i] for i in nest] for nest in fac[selfa]]
-    return dc([[co[selv], vidx[selv], uv_co, vnorm[selv], und_co[selv]], [eidx[sele], edg[sele]], [farea[selfa], fidx[selfa], fnorm[selfa], fcnt[selfa], fac[selfa]], [new_idx, new_e, new_f, v_count, e_count, f_count, nv_Dict]])
+    return dc([co[selv], new_f, nv_Dict])
 
 #creates new mesh
 def obj_mesh(co, faces):
@@ -117,26 +80,33 @@ def obj_new(Name, co, faces):
     bpy.data.objects["Obj"].name = Name
     bpy.data.meshes[bpy.data.objects[Name].data.name].name = Name
 
-#find center geometry
-def centroid(co):
-    xt = [i[0] for i in co]
-    yt = [i[1] for i in co]
-    zt = [i[2] for i in co]
-    count = len(co)
-    return [sum(xt) / count, sum(yt) / count, sum(zt) / count]
 
-# ------------------------------------------------------------------------    
+
+# ------------------------------------------------------------------------ 
 #vertex group index list
 def vg_idx_list(vgn):
     return([v.index for v in bpy.context.object.data.vertices if v.select and bpy.context.object.vertex_groups[vgn].index in [vg.group for vg in v.groups]])
 
 #vertex group {name: [indexes]} dictionary
 def vg_idx_dict(gs):
-    #gs = get_sel()
     vn = [v.name for v in bpy.context.object.vertex_groups[:]]
     vd = {n: vg_idx_list(n) for n in vn}
     vdd = {k: vd[k] for k in vd if vd[k] != []}
-    return dc({d: [gs[3][6][i] for i in vdd[d]] for d in vdd})
+    return dc({d: [gs[2][i] for i in vdd[d]] for d in vdd})
+
+
+
+#vertex group index list
+def vidx_list(vgn):
+    return([[v.index, v.groups[0].weight] for v in bpy.context.object.data.vertices if v.select and bpy.context.object.vertex_groups[vgn].index in [vg.group for vg in v.groups]])
+
+#vertex group {name: [indexes]} dictionary
+def vidx_dict():
+    vn = [v.name for v in bpy.context.object.vertex_groups[:]]
+    vd = {n: vidx_list(n) for n in vn}
+    vdd = {k: vd[k] for k in vd if vd[k] != []}
+    return dc(vdd)
+
 
 # ------------------------------------------------------------------------ 
 
@@ -147,6 +117,17 @@ def transfer_vt(viw):
     for vgroup in viw:
         nvg = bpy.data.objects[bpy.context.scene.face_copy.obj_name].vertex_groups.new(name=vgroup)
         nvg.add(viw[vgroup], 1.0, "ADD")
+
+def add_wt(vid):
+    vt = bpy.data.objects[bpy.context.scene.face_copy.obj_name].data.vertices
+    for v in vid:
+        for i in vid[v]:
+            vt[i[0]].groups[0].weight = i[1]
+
+def copy_wt(viw, vid):
+    transfer_vt(viw)
+    add_wt(vid)
+
 
 # ------------------------------------------------------------------------
 
@@ -162,15 +143,14 @@ def add_face_copy_manual_map():
 #Create the Copy Face Object
 def add_object(self, context):
     gs = get_sel()
-    if bpy.context.object.vertex_groups:
-        viw = vg_idx_dict(gs)
-        vni = {vg.name: vg.index for vg in bpy.context.object.vertex_groups }
-    else:
-        viw = {}
-        vni = {}
-    obj_new(bpy.context.scene.face_copy.obj_name, gs[0][0], gs[3][2])
+    viw = vg_idx_dict(gs)
+    vid = vidx_dict()
+    obj_new(bpy.context.scene.face_copy.obj_name, gs[0], gs[1])
     if bpy.context.scene.face_copy.add_vg_bool:
-        transfer_vt(viw)
+        try:
+            copy_wt(viw, vid)
+        except:
+            pass
     if bpy.context.scene.face_copy.add_origin_bool:
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
     if bpy.context.scene.face_copy.set_smooth_bool:
